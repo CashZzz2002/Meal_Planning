@@ -1,0 +1,82 @@
+name: meal-planning
+
+services:
+  oracle-db:
+    image: container-registry.oracle.com/database/enterprise:19.3.0.0
+    container_name: meal-planning-oracle
+    environment:
+      ORACLE_PDB: ${ORACLE_PDB:-ORCLPDB1}
+      ORACLE_PWD: ${ORACLE_SYS_PASSWORD:?Set ORACLE_SYS_PASSWORD in .env}
+      APP_USER_PASSWORD: ${APP_USER_PASSWORD:?Set APP_USER_PASSWORD in .env}
+      TZ: Asia/Yangon
+    ports:
+      - "1521:1521"
+      - "5500:5500"
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+      - ./Database/Oracle:/opt/oracle/scripts/custom:ro
+      - ./Database/ContainerSetup/001_setup.sh:/opt/oracle/scripts/setup/001_setup.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/oracle/checkDBStatus.sh >/dev/null 2>&1"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 15m
+    restart: unless-stopped
+
+  admin-api:
+    build:
+      context: .
+      dockerfile: Admin/MealPlanning.Admin.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      Database__Enabled: "true"
+      ConnectionStrings__MealPlanner: User Id=MEAL_PLANNER;Password=${APP_USER_PASSWORD};Data Source=oracle-db:1521/${ORACLE_PDB:-ORCLPDB1};
+      TZ: Asia/Yangon
+    depends_on:
+      oracle-db:
+        condition: service_healthy
+    ports:
+      - "5101:8080"
+
+  user-api:
+    build:
+      context: .
+      dockerfile: User/MealPlanning.User.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      Database__Enabled: "true"
+      ConnectionStrings__MealPlanner: User Id=MEAL_PLANNER;Password=${APP_USER_PASSWORD};Data Source=oracle-db:1521/${ORACLE_PDB:-ORCLPDB1};
+      TZ: Asia/Yangon
+    depends_on:
+      oracle-db:
+        condition: service_healthy
+    ports:
+      - "5201:8080"
+
+  admin-web:
+    build:
+      context: ./Admin/admin-web
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:5101
+      TZ: Asia/Yangon
+    depends_on:
+      - admin-api
+    ports:
+      - "3001:3000"
+
+  user-web:
+    build:
+      context: ./User/user-web
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:5201
+      TZ: Asia/Yangon
+    depends_on:
+      - user-api
+    ports:
+      - "3002:3000"
+
+volumes:
+  oracle-data:

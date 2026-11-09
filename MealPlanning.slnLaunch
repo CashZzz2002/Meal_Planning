@@ -1,0 +1,38 @@
+[
+  {
+    "Name": "Portals only (static demo)",
+    "Projects": [
+      {
+        "Path": "Admin\\admin-web\\MealPlanning.Admin.WebPortal.esproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "User\\user-web\\MealPlanning.User.WebPortal.esproj",
+        "Action": "Start"
+      }
+    ]
+  },
+  {
+    "Name": "All portals and APIs",
+    "Projects": [
+      {
+        "Path": "Admin\\MealPlanning.Admin.Api\\MealPlanning.Admin.Api.csproj",
+        "Action": "Start",
+        "DebugTarget": "http"
+      },
+      {
+        "Path": "Admin\\admin-web\\MealPlanning.Admin.WebPortal.esproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "User\\MealPlanning.User.Api\\MealPlanning.User.Api.csproj",
+        "Action": "Start",
+        "DebugTarget": "http"
+      },
+      {
+        "Path": "User\\user-web\\MealPlanning.User.WebPortal.esproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

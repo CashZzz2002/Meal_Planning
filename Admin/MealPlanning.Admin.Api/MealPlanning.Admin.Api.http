@@ -1,0 +1,19 @@
+@host = https://localhost:7101
+
+GET {{host}}/health/live
+Accept: application/json
+
+###
+
+GET {{host}}/health/ready
+Accept: application/json
+
+###
+
+GET {{host}}/api/system/time
+Accept: application/json
+
+###
+
+GET {{host}}/api/system/modules
+Accept: application/json

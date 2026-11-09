@@ -1,0 +1,41 @@
+-- Stable bootstrap data only. Mutable rules remain admin-managed setup data.
+SET DEFINE OFF
+WHENEVER SQLERROR EXIT SQL.SQLCODE ROLLBACK
+ALTER SESSION SET TIME_ZONE = 'Asia/Yangon';
+
+MERGE INTO "MENUS" target USING (
+  SELECT HEXTORAW('10000000000000000000000000000001') id, 'IAM' code, 'အသုံးပြုသူနှင့် ခွင့်ပြုချက်' label, '/identity' route, 10 sort_order FROM dual UNION ALL
+  SELECT HEXTORAW('10000000000000000000000000000002'), 'SETUP', 'အခြေခံအချက်အလက်', '/setup', 20 FROM dual UNION ALL
+  SELECT HEXTORAW('10000000000000000000000000000003'), 'WAREHOUSE', 'ကုန်လှောင်ရုံ', '/warehouse', 30 FROM dual UNION ALL
+  SELECT HEXTORAW('10000000000000000000000000000004'), 'MEAL_PLAN', 'တစ်ပတ်စာဟင်းလျာ', '/meal-plans', 40 FROM dual UNION ALL
+  SELECT HEXTORAW('10000000000000000000000000000005'), 'ORDER', 'အော်ဒါများ', '/orders', 50 FROM dual
+) source ON (target."CODE" = source.code)
+WHEN NOT MATCHED THEN INSERT ("ID", "PARENT_MENU_ID", "CODE", "LABEL", "ROUTE", "SORT_ORDER", "IS_ACTIVE")
+VALUES (source.id, NULL, source.code, source.label, source.route, source.sort_order, 1);
+
+MERGE INTO "UNITS" target USING (
+  SELECT HEXTORAW('20000000000000000000000000000001') id, 'G' code, 'ဂရမ်' name_mm, 'MASS' dimension FROM dual UNION ALL
+  SELECT HEXTORAW('20000000000000000000000000000002'), 'KG', 'ကီလိုဂရမ်', 'MASS' FROM dual UNION ALL
+  SELECT HEXTORAW('20000000000000000000000000000003'), 'ML', 'မီလီလီတာ', 'VOLUME' FROM dual UNION ALL
+  SELECT HEXTORAW('20000000000000000000000000000004'), 'L', 'လီတာ', 'VOLUME' FROM dual UNION ALL
+  SELECT HEXTORAW('20000000000000000000000000000005'), 'PCS', 'ခု', 'COUNT' FROM dual
+) source ON (target."CODE" = source.code)
+WHEN NOT MATCHED THEN INSERT ("ID", "CODE", "NAME_MM", "DIMENSION", "IS_ACTIVE")
+VALUES (source.id, source.code, source.name_mm, source.dimension, 1);
+
+MERGE INTO "MEAL_TYPES" target USING (
+  SELECT HEXTORAW('30000000000000000000000000000001') id, 'BREAKFAST' code, 'မနက်စာ' name_mm, 10 sort_order FROM dual UNION ALL
+  SELECT HEXTORAW('30000000000000000000000000000002'), 'LUNCH', 'နေ့လယ်စာ', 20 FROM dual UNION ALL
+  SELECT HEXTORAW('30000000000000000000000000000003'), 'DINNER', 'ညစာ', 30 FROM dual
+) source ON (target."CODE" = source.code)
+WHEN NOT MATCHED THEN INSERT ("ID", "CODE", "NAME_MM", "SORT_ORDER", "IS_ACTIVE")
+VALUES (source.id, source.code, source.name_mm, source.sort_order, 1);
+
+MERGE INTO "PAYMENT_METHODS" target USING (
+  SELECT HEXTORAW('40000000000000000000000000000001') id, 'COD' code, 'Cash on Delivery' name FROM dual UNION ALL
+  SELECT HEXTORAW('40000000000000000000000000000002'), 'MMQR', 'Myanmar QR' FROM dual
+) source ON (target."CODE" = source.code)
+WHEN NOT MATCHED THEN INSERT ("ID", "CODE", "NAME", "IS_ENABLED")
+VALUES (source.id, source.code, source.name, 1);
+
+COMMIT;
