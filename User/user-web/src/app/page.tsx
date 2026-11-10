@@ -20,7 +20,6 @@ export default function UserHome() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    setTime({ now: new Date().toISOString(), timeZoneId: "Asia/Yangon" });
     Promise.all([
       fetch(`${apiUrl}/api/system/modules`).then((response) => {
         if (!response.ok) throw new Error("User modules unavailable");
@@ -32,7 +31,10 @@ export default function UserHome() {
       }),
     ]).then(([moduleData, timeData]) => {
       setModules(moduleData); setTime(timeData); setApiConnected(true);
-    }).catch(() => setApiConnected(false));
+    }).catch(() => {
+      setTime({ now: new Date().toISOString(), timeZoneId: "Asia/Yangon" });
+      setApiConnected(false);
+    });
   }, []);
 
   return (

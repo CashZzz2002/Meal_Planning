@@ -26,7 +26,6 @@ export default function AdminHome() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    setTime({ now: new Date().toISOString(), timeZoneId: "Asia/Yangon" });
     Promise.all([
       fetch(`${apiUrl}/api/system/modules`).then((response) => {
         if (!response.ok) throw new Error("Admin modules unavailable");
@@ -38,7 +37,10 @@ export default function AdminHome() {
       }),
     ]).then(([moduleData, timeData]) => {
       setModules(moduleData); setTime(timeData); setStatus("System operational");
-    }).catch(() => setStatus("Static demo mode"));
+    }).catch(() => {
+      setTime({ now: new Date().toISOString(), timeZoneId: "Asia/Yangon" });
+      setStatus("Static demo mode");
+    });
   }, []);
 
   return (

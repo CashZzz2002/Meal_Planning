@@ -20,7 +20,7 @@ function Stop-ProcessTree {
     Stop-Process -Id $ProcessId -Force -ErrorAction SilentlyContinue
 }
 
-$services = @(Get-Content -Raw -LiteralPath $statePath | ConvertFrom-Json)
+$services = Get-Content -Raw -LiteralPath $statePath | ConvertFrom-Json
 foreach ($service in $services) {
     Stop-ProcessTree -ProcessId $service.ProcessId
     Write-Output "Stopped: $($service.Name)"

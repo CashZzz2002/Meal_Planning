@@ -41,8 +41,8 @@ $definitions = if ($PortalsOnly) {
     $portalDefinitions
 } else {
     @(
-        [pscustomobject]@{ Name = 'Admin API'; File = 'dotnet'; WorkingDirectory = $repoPath; Arguments = @('run', '--project', '.\Admin\MealPlanning.Admin.Api', '--no-launch-profile', '--urls', 'http://127.0.0.1:5101'); ReadyUrl = 'http://127.0.0.1:5101/health/live' },
-        [pscustomobject]@{ Name = 'User API'; File = 'dotnet'; WorkingDirectory = $repoPath; Arguments = @('run', '--project', '.\User\MealPlanning.User.Api', '--no-launch-profile', '--urls', 'http://127.0.0.1:5201'); ReadyUrl = 'http://127.0.0.1:5201/health/live' }
+        [pscustomobject]@{ Name = 'Admin API'; File = 'dotnet'; WorkingDirectory = $repoPath; Arguments = @('run', '--project', '.\Admin\MealPlanning.Admin.Api', '--no-launch-profile', '-e', 'ASPNETCORE_ENVIRONMENT=Development', '--urls', 'http://127.0.0.1:5101'); ReadyUrl = 'http://127.0.0.1:5101/health/live' },
+        [pscustomobject]@{ Name = 'User API'; File = 'dotnet'; WorkingDirectory = $repoPath; Arguments = @('run', '--project', '.\User\MealPlanning.User.Api', '--no-launch-profile', '-e', 'ASPNETCORE_ENVIRONMENT=Development', '--urls', 'http://127.0.0.1:5201'); ReadyUrl = 'http://127.0.0.1:5201/health/live' }
     ) + $portalDefinitions
 }
 

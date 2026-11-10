@@ -1,5 +1,8 @@
 using MealPlanning.Admin.Application.Time;
 using MealPlanning.Admin.Infrastructure;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddProblemDetails();
@@ -19,7 +22,10 @@ if (builder.Configuration.GetValue<bool>("HttpsRedirection:Enabled"))
 app.UseCors();
 
 app.MapHealthChecks("/health/live", new() { Predicate = _ => false });
-app.MapHealthChecks("/health/ready");
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    ResponseWriter = WriteHealthResponse
+});
 app.MapGet("/api/system/time", (IMyanmarClock clock) => Results.Ok(new
 {
     clock.Now,
@@ -35,5 +41,21 @@ app.MapGet("/api/system/modules", () => Results.Ok(new[]
 }));
 
 app.Run();
+
+static Task WriteHealthResponse(HttpContext context, HealthReport report)
+{
+    context.Response.ContentType = "application/json";
+    return JsonSerializer.SerializeAsync(context.Response.Body, new
+    {
+        status = report.Status.ToString(),
+        checks = report.Entries.Select(entry => new
+        {
+            name = entry.Key,
+            status = entry.Value.Status.ToString(),
+            entry.Value.Description,
+            entry.Value.Data
+        })
+    });
+}
 
 public partial class Program;

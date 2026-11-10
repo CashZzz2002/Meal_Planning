@@ -1,10 +1,14 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 const nextConfig: NextConfig = {
   output: "standalone",
   allowedDevOrigins: ["127.0.0.1", "localhost"],
   cacheComponents: true,
   partialPrefetching: true,
+  turbopack: {
+    root: path.resolve(__dirname),
+  },
 };
 
 export default nextConfig;

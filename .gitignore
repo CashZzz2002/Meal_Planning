@@ -13,3 +13,6 @@ appsettings.Local.json
 **/out/
 npm-debug.log*
 .run/
+.neon
+node_modules/
+.env.local
