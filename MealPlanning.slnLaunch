@@ -5,7 +5,7 @@
       {
         "Path": "Admin\\MealPlanning.Admin.Api\\MealPlanning.Admin.Api.csproj",
         "Action": "Start",
-        "DebugTarget": "http"
+        "DebugTarget": "Container (Dockerfile)"
       },
       {
         "Path": "Admin\\admin-web\\MealPlanning.Admin.WebPortal.esproj",
@@ -14,7 +14,7 @@
       {
         "Path": "User\\MealPlanning.User.Api\\MealPlanning.User.Api.csproj",
         "Action": "Start",
-        "DebugTarget": "http"
+        "DebugTarget": "Container (Dockerfile)"
       },
       {
         "Path": "User\\user-web\\MealPlanning.User.WebPortal.esproj",

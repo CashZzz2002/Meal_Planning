@@ -61,7 +61,15 @@ try {
     }
 
     Add-Type -Path (Join-Path $PSScriptRoot 'OwnedProcess.cs')
-    $node = (Get-Command node.exe -ErrorAction Stop).Source
+    $nodeCommand = Get-Command node.exe -ErrorAction SilentlyContinue
+    $localNode = Join-Path $repoPath '.run\tools\node\node.exe'
+    $node = if ($nodeCommand) {
+        $nodeCommand.Source
+    } elseif (Test-Path $localNode) {
+        $localNode
+    } else {
+        throw 'Node.js was not found. Install Node.js 24 system-wide or provide .run\tools\node\node.exe.'
+    }
     if ($owner -and $owner.HasExited) { exit 0 }
 
     $arguments = @((Join-Path $PSScriptRoot 'portal.mjs'), $Portal, 'dev')

@@ -43,7 +43,7 @@ Both APIs import `Shared/MealPlanning.Shared.Hosting/ConfigAssets.targets`. It l
 - `Services:Admin` and `Services:User` each define `ApiUrl`, `PortalUrl`, and explicit `AllowedOrigins` for that API's CORS policy.
 - URLs are absolute HTTP(S) **origins** without credentials, paths, query strings, fragments, or trailing slashes.
 - `Swagger:Enabled` controls both the Swagger middleware and synchronized API browser launch. It is enabled in `dev` and disabled in the other templates.
-- `Database:Enabled` defaults to `false`. Enabling it requires `ConnectionStrings:MealPlanner` from a private source.
+- `Database:Enabled` defaults to `false`. Enabling it requires `ConnectionStrings:MealPlanner` or the standard Neon `DATABASE_URL` from a private source. `ConnectionStrings:MealPlanner` takes precedence when both exist.
 - `HttpsRedirection:Enabled` controls HTTP-to-HTTPS redirection; it is disabled for the local HTTP profiles.
 - Logging uses the built-in structured JSON console formatter, with UTC audit-log timestamps. Business time still uses the existing `IMyanmarClock` in `Asia/Yangon`.
 
@@ -69,7 +69,7 @@ dotnet user-secrets set 'ConnectionStrings:MealPlanner' '[REDACTED_SECRET]' --pr
 dotnet user-secrets set 'Database:Enabled' 'true' --project .\User\MealPlanning.User.Api
 ```
 
-Use the pooled connection for API traffic. Deployed hosts receive `ConnectionStrings__MealPlanner` from the approved environment/secret store. Direct database connections remain reserved for migrations and verification.
+Use the pooled connection for API traffic. Deployed hosts receive `ConnectionStrings__MealPlanner` or `DATABASE_URL` from the approved environment/secret store. Direct `DATABASE_URL_UNPOOLED` connections remain reserved for migrations and verification. The connection normalizer accepts Neon URI values with or without the surrounding quotes emitted by environment-file tooling.
 
 For SIT/UAT/preprod/prod, copy the matching example to `custom-setting-<stage>.json`, replace its public placeholders, and supply private settings externally. Real non-dev files are ignored by Git; review their non-secret contents before packaging them.
 
@@ -82,15 +82,17 @@ npm run config:sync
 npm run config:check
 ```
 
-The sync command reads the selected shared config and environment overrides, then updates only the managed URL/browser fields in the API `http` profiles and each portal's `.vscode/launch.json`. It preserves other profiles and debugger options. Run it after changing local URLs, then reload the solution. Local launch tooling requires four distinct loopback HTTP ports. Environment changes must also be available to the Visual Studio process (restart it from the configured environment when needed).
+The sync command reads the selected shared config and environment overrides, then updates only the managed URL/browser fields in the API `http` profiles and each portal's `.vscode/launch.json`. It preserves the API `Container (Dockerfile)` profiles and other debugger options. Run it after changing local URLs, then reload the solution. Local launch tooling requires four distinct loopback HTTP ports.
 
-Both portals and both APIs have startup action **Start** in **All portals and APIs**. Both `.esproj` projects also have **Build** and **Deploy** selected in Configuration Manager for every solution configuration. JSPS uses local Deploy to execute the startup command; selecting only Start opens a browser without starting its server. Here, Deploy means starting the local development server. The APIs launch `/swagger`, and each portal's `.vscode/launch.json` opens its own URL.
+Both portals and both APIs have startup action **Start** in **All portals and APIs**. The APIs select `Container (Dockerfile)` and receive the ignored root `.env.local`; the portals run locally. Both `.esproj` projects also have **Build** and **Deploy** selected in Configuration Manager for every solution configuration. JSPS uses local Deploy to execute the startup command; selecting only Start opens a browser without starting its server. Here, Deploy means starting the local development server. Each portal's `.vscode/launch.json` opens its own URL; the API container profiles publish ports 5101 and 5201.
 
-Visual Studio performs local Deploy **before** starting API debugging, so its `.esproj` commands use `-SkipApiWait -TrackVisualStudio`. The portal launcher starts Next.js on the configured fixed port and observes the exact ancestor Visual Studio instance's debugger session. Run and break modes keep it alive; Stop ends it. This also closes the native command window, which JSPS otherwise leaves running. Other Visual Studio instances are isolated by process ID and solution path.
+Visual Studio completes local portal Deploy **before** starting API container debugging, so the `.esproj` commands use `-SkipApiWait -TrackVisualStudio` to avoid a startup deadlock. The portal launcher starts Next.js on the configured fixed port and observes the exact ancestor Visual Studio instance's debugger session. Run and break modes keep it alive; Stop ends it. This also closes the native command window, which JSPS otherwise leaves running. Other Visual Studio instances are isolated by process ID and solution path. Verify both API `/health/ready` endpoints after F5 completes.
 
 The Windows launcher creates a suspended Node process, assigns it to a **kill-on-close Job Object**, and only then resumes it. All descendants inherit that job. It also tracks the exact parent command process; normal exit, parent-only termination, and forced launcher termination release the portal tree. Admin and User have separate owners/jobs. The API processes are independently owned by Visual Studio.
 
-Direct `Start-Portal.ps1` commands wait for the corresponding API's `/health/ready` by default. Dependencies are installed explicitly with `npm ci`; `.esproj` uses `ShouldRunNpmInstall=false` and `ShouldRunBuildScript=false` for predictable F5 builds. Run each portal's `npm run build` for production verification.
+Direct `Start-Portal.ps1` commands also wait for the corresponding API's `/health/ready` by default. Dependencies are installed explicitly with `npm ci`; `.esproj` uses `ShouldRunNpmInstall=false` and `ShouldRunBuildScript=false` for predictable F5 builds. Run each portal's `npm run build` for production verification.
+
+The portal launcher resolves `node.exe` from the process PATH first, then falls back to the ignored `.run/tools/node/node.exe`. This allows Visual Studio to use a local portable Node 24 runtime when its process environment cannot see a machine-wide installation.
 
 `Start-Local.ps1` uses detached portal owners and records process IDs **and creation times** for `Stop-Local.ps1`. State snapshots are replaced atomically with bounded retries for temporary file locks. Retained process handles ensure a failed startup also stops services whose state could not be saved. Its API processes run built DLLs directly. `-PortalsOnly` explicitly skips API readiness for the existing static-demo preview.
 

@@ -10,6 +10,21 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker",
+      "launchBrowser": false,
+      "httpPort": 5101,
+      "useSSL": false,
+      "publishAllPorts": false,
+      "containerName": "meal-planning-admin-api",
+      "containerRunEnvironmentFiles": "{ProjectDir}../../.env.local",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://+:8080",
+        "Stage": "dev",
+        "Database__Enabled": "true"
+      }
     }
   }
 }

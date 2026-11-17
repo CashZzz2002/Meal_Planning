@@ -35,8 +35,8 @@ public static class HostOptionsExtensions
 
         services.AddOptions<DatabaseOptions>()
             .Bind(configuration.GetSection(DatabaseOptions.SectionName))
-            .Validate(options => !options.Enabled || !string.IsNullOrWhiteSpace(configuration.GetConnectionString("MealPlanner")),
-                "ConnectionStrings:MealPlanner is required when Database:Enabled is true. Supply it through this API's User Secrets or ConnectionStrings__MealPlanner.")
+            .Validate(options => !options.Enabled || HasDatabaseConnection(configuration),
+                "A database connection is required when Database:Enabled is true. Supply ConnectionStrings:MealPlanner or DATABASE_URL from a private source.")
             .ValidateOnStart();
 
         services.AddOptions<SwaggerOptions>()
@@ -59,4 +59,8 @@ public static class HostOptionsExtensions
         uri.Query.Length == 0 &&
         uri.Fragment.Length == 0 &&
         !value.EndsWith('/');
+
+    private static bool HasDatabaseConnection(IConfiguration configuration) =>
+        !string.IsNullOrWhiteSpace(configuration.GetConnectionString("MealPlanner")) ||
+        !string.IsNullOrWhiteSpace(configuration["DATABASE_URL"]);
 }

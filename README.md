@@ -32,7 +32,7 @@ MealPlanning.sln
 
 Each side follows `Api -> Infrastructure -> Application -> Domain`. API hosts also reference `Shared.Hosting`, which has no business-project dependencies. The Next.js projects call their APIs over HTTP. Their `.esproj` files are independent Visual Studio startup projects.
 
-The current APIs expose health, Myanmar time and module-directory endpoints, with Swagger in the `dev` stage. Portal meal, order and warehouse data is still presentation/demo data. Configuration and process-lifecycle verification do not establish database persistence or a completed business workflow.
+The current APIs expose health, Myanmar time and module-directory endpoints, with Swagger in the `dev` stage. The User API also exposes `GET /api/reference/meal-types` through the Application and Infrastructure layers, and the User portal displays that live Neon reference data separately from its demo dashboard. Other portal meal, order and warehouse data is still presentation/demo data.
 
 ## Myanmar-time policy
 
@@ -60,16 +60,20 @@ The source SQL hash is embedded in the generated schema so source changes fail c
 - .NET 8 SDK or a newer SDK capable of targeting .NET 8
 - Node.js 24 and npm
 - Visual Studio with the ASP.NET/web and JavaScript/TypeScript tooling for the F5 workflow
+- Docker Desktop with the Linux container engine running
 - For database-enabled mode: Neon CLI 9.3 or newer and access to the linked Neon project
 
-Authenticate and pull the linked production branch environment without printing secrets:
+Authenticate, select or create a non-production Neon child branch, and pull its ignored environment file without printing secrets:
 
 ```powershell
 neon login
+neon checkout dev-docker-local --create
 neon env pull --file .env.local
 ```
 
 Do not place registry credentials, database passwords or connection strings in the repository.
+
+Visual Studio must be able to resolve `node.exe`. If a machine-wide Node installation is unavailable, `Start-Portal.ps1` also accepts an ignored portable Node 24 runtime at `.run/tools/node/node.exe`.
 
 ## Run the complete local stack
 
@@ -101,19 +105,20 @@ Neon database data is not stored in a local Docker volume. Compose supplies each
 
 ## Run APIs and portals locally
 
-The default `Stage=dev` configuration runs with `Database:Enabled=false`. To enable Neon, configure the pooled connection and enablement in each API's own .NET User Secrets. See [Config/README.md](Config/README.md) for settings, safe secret commands, path resolution, stage templates and precedence.
+The default `Stage=dev` configuration runs with `Database:Enabled=false`. The Visual Studio Docker profiles enable the database and pass the ignored `.env.local` file to each API container. Normal API traffic uses its pooled `DATABASE_URL`; direct `DATABASE_URL_UNPOOLED` remains reserved for migrations and verification. See [Config/README.md](Config/README.md) for settings, safe secret commands, path resolution, stage templates and precedence.
 
 ### Recommended: Visual Studio (F5 / Stop)
 
 1. If you previously used the PowerShell launcher, run `.\scripts\Stop-Local.ps1` first to release its processes and ports.
 2. Install dependencies and synchronize the native launch settings once (commands below).
-3. Open `MealPlanning.sln`, select **All portals and APIs**, and press **F5**. Reload the solution after changing shared launch settings if Visual Studio still shows an old profile.
-4. Visual Studio starts all four projects and opens four separate pages:
+3. Confirm Docker Desktop is running and `.env.local` belongs to the intended non-production Neon branch.
+4. Open `MealPlanning.sln`, select **All portals and APIs**, and press **F5**. Reload the solution after changing shared launch settings if Visual Studio still shows an old profile.
+5. Visual Studio starts both local portals during Deploy, then builds and starts both API Docker containers. The four separate pages are:
    - Admin Swagger: `http://localhost:5101/swagger`
    - User Swagger: `http://localhost:5201/swagger`
    - Admin portal: `http://localhost:3001`
    - User portal: `http://localhost:3002`
-5. Press the red **Stop** button (**Shift+F5**). Both APIs and the portal process trees stop. Allow a few seconds for process/port cleanup before starting again.
+6. Press the red **Stop** button (**Shift+F5**). Both API containers and the portal process trees stop. Allow a few seconds for process/port cleanup before starting again.
 
 An already-open browser tab can still display its last rendered page after Stop. Refreshing it after shutdown fails to connect because the portal server has stopped. Deleting `.next` or browser caches is unnecessary for stopping the servers.
 
@@ -121,8 +126,8 @@ The shared `MealPlanning.slnLaunch` profile uses these startup actions:
 
 | Project | Action | Debug target |
 | --- | --- | --- |
-| `MealPlanning.Admin.Api` | Start | `http` |
-| `MealPlanning.User.Api` | Start | `http` |
+| `MealPlanning.Admin.Api` | Start | `Container (Dockerfile)` |
+| `MealPlanning.User.Api` | Start | `Container (Dockerfile)` |
 | `MealPlanning.Admin.WebPortal` | Start | `Launch Admin portal` (Edge) |
 | `MealPlanning.User.WebPortal` | Start | `Launch User portal` (Edge) |
 
@@ -130,7 +135,7 @@ If the profile is missing, enable **Tools > Options > Environment > Preview Feat
 
 In **Build > Configuration Manager**, keep **Build** and **Deploy** checked for both WebPortal projects. These flags are included in the solution. JavaScript projects use the local Deploy phase to start their development servers.
 
-Each `.esproj` starts `Start-Portal.ps1` during local Deploy, before API debugging begins. The launcher tracks that exact Visual Studio debugger session and ends on Stop. A Windows kill-on-close Job Object owns all Node descendants and also handles forced launcher termination. Install dependencies explicitly before the first F5 run; Visual Studio's normal build uses those installed dependencies:
+Each `.esproj` starts `Start-Portal.ps1 -SkipApiWait` during local Deploy because Visual Studio completes portal Deploy before starting API debugging. The launcher tracks that exact Visual Studio debugger session and ends on Stop. A Windows kill-on-close Job Object owns all Node descendants and also handles forced launcher termination. After F5 finishes, use both `/health/ready` endpoints to confirm the API containers reached Neon. Install dependencies explicitly before the first F5 run; Visual Studio's normal build uses those installed dependencies:
 
 ```powershell
 dotnet restore .\MealPlanning.sln

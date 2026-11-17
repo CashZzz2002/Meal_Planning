@@ -98,8 +98,11 @@ try {
             throw 'The system endpoints are missing from Swagger.'
         }
         $null = Wait-Http "$($service.api.probeUrl)/swagger/index.html"
-        $time = (Wait-Http "$($service.api.probeUrl)/api/system/time").Content | ConvertFrom-Json
-        if ($time.timeZoneId -ne 'Asia/Yangon' -or -not $time.now.EndsWith('+06:30')) { throw 'Myanmar time contract failed.' }
+        $timeContent = (Wait-Http "$($service.api.probeUrl)/api/system/time").Content
+        $time = $timeContent | ConvertFrom-Json
+        if ($time.timeZoneId -ne 'Asia/Yangon' -or $timeContent -notmatch '"now"\s*:\s*"[^"]+\+06:30"') {
+            throw 'Myanmar time contract failed.'
+        }
         $response = Invoke-WebRequest -UseBasicParsing "$($service.api.probeUrl)/api/system/time" -Headers @{ Origin = $service.web.url }
         if ($response.Headers['Access-Control-Allow-Origin'] -ne $service.web.url) { throw 'Portal CORS origin was not accepted.' }
         $other = @($launch.services | Where-Object { $_.name -ne $service.name })[0]

@@ -24,10 +24,14 @@ if (app.Services.GetRequiredService<IOptions<SwaggerOptions>>().Value.Enabled)
 
 app.MapMealPlanningHealthChecks();
 app.MapUserSystemEndpoints();
+var database = app.Services.GetRequiredService<IOptions<DatabaseOptions>>().Value;
+if (database.Enabled)
+{
+    app.MapUserReferenceEndpoints();
+}
 if (app.Logger.IsEnabled(LogLevel.Information))
 {
     var stage = app.Services.GetRequiredService<IOptions<StageOptions>>().Value;
-    var database = app.Services.GetRequiredService<IOptions<DatabaseOptions>>().Value;
     HostingLog.Startup(app.Logger, "User API", stage.Stage, database.Enabled);
 }
 app.Run();

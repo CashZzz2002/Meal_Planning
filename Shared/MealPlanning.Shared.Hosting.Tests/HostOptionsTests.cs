@@ -14,7 +14,7 @@ public sealed class HostOptionsTests
     [InlineData("Services:Admin:PortalUrl", "relative-path", "PortalUrl")]
     [InlineData("Services:Admin:ApiUrl", "https://user:do-not-log@example.invalid", "ApiUrl")]
     [InlineData("Services:Admin:AllowedOrigins:0", "*", "AllowedOrigins")]
-    [InlineData("Database:Enabled", "true", "ConnectionStrings:MealPlanner")]
+    [InlineData("Database:Enabled", "true", "DATABASE_URL")]
     public void RequiredOptionsAreValidatedAtStartupWithoutEchoingValues(string key, string value, string expectedKey)
     {
         using var configuration = CreateConfiguration(key, value);
@@ -39,6 +39,19 @@ public sealed class HostOptionsTests
         Assert.False(admin.GetRequiredService<IOptions<DatabaseOptions>>().Value.Enabled);
         Assert.Equal("http://localhost:5101", admin.GetRequiredService<IOptions<ServiceEndpointsOptions>>().Value.ApiUrl);
         Assert.Equal("http://localhost:5201", user.GetRequiredService<IOptions<ServiceEndpointsOptions>>().Value.ApiUrl);
+    }
+
+    [Fact]
+    public void EnabledDatabaseAcceptsNeonDatabaseUrlFallback()
+    {
+        using var configuration = CreateConfiguration("Database:Enabled", "true");
+        configuration["DATABASE_URL"] = "postgresql://test-user:test-password@example.invalid/test-db";
+        using var provider = new ServiceCollection()
+            .AddMealPlanningHostOptions(configuration, "Admin")
+            .BuildServiceProvider();
+
+        provider.GetRequiredService<IStartupValidator>().Validate();
+        Assert.True(provider.GetRequiredService<IOptions<DatabaseOptions>>().Value.Enabled);
     }
 
     private static ConfigurationManager CreateConfiguration(string key, string value)

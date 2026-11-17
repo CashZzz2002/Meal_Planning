@@ -19,7 +19,9 @@ public static class DependencyInjection
         if (configuration.GetValue<bool>("Database:Enabled"))
         {
             var connectionString = configuration.GetConnectionString("MealPlanner")
-                ?? throw new InvalidOperationException("ConnectionStrings:MealPlanner is required when Database:Enabled is true.");
+                ?? configuration["DATABASE_URL"]
+                ?? throw new InvalidOperationException(
+                    "ConnectionStrings:MealPlanner or DATABASE_URL is required when Database:Enabled is true.");
 
             services.AddSingleton(_ => NpgsqlDataSource.Create(
                 PostgresConnectionString.Normalize(connectionString)));

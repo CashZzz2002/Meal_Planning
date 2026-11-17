@@ -5,6 +5,8 @@ import styles from "./page.module.css";
 
 type ModuleInfo = { code: string; name: string };
 type TimeInfo = { now: string; timeZoneId: string };
+type MealTypeInfo = { id: string; code: string; nameMm: string; sortOrder: number };
+type MealTypeStatus = "loading" | "ready" | "empty" | "error";
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:5201";
 const demoModules: ModuleInfo[] = [
   { code: "HOUSEHOLD", name: "အိမ်ထောင်စု" },
@@ -16,6 +18,8 @@ const demoModules: ModuleInfo[] = [
 export default function UserHome() {
   const [modules, setModules] = useState<ModuleInfo[]>(demoModules);
   const [time, setTime] = useState<TimeInfo | null>(null);
+  const [mealTypes, setMealTypes] = useState<MealTypeInfo[]>([]);
+  const [mealTypeStatus, setMealTypeStatus] = useState<MealTypeStatus>("loading");
   const [apiConnected, setApiConnected] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -29,10 +33,20 @@ export default function UserHome() {
         if (!response.ok) throw new Error("User time unavailable");
         return response.json();
       }),
-    ]).then(([moduleData, timeData]) => {
-      setModules(moduleData); setTime(timeData); setApiConnected(true);
+      fetch(`${apiUrl}/api/reference/meal-types`).then((response) => {
+        if (!response.ok) throw new Error("Meal types unavailable");
+        return response.json();
+      }),
+    ]).then(([moduleData, timeData, mealTypeData]: [ModuleInfo[], TimeInfo, MealTypeInfo[]]) => {
+      setModules(moduleData);
+      setTime(timeData);
+      setMealTypes(mealTypeData);
+      setMealTypeStatus(mealTypeData.length > 0 ? "ready" : "empty");
+      setApiConnected(true);
     }).catch(() => {
       setTime({ now: new Date().toISOString(), timeZoneId: "Asia/Yangon" });
+      setMealTypes([]);
+      setMealTypeStatus("error");
       setApiConnected(false);
     });
   }, []);
@@ -92,8 +106,18 @@ export default function UserHome() {
             </article>
           </section>
 
+          <section className={styles.referencePanel} aria-live="polite">
+            <div><span className={styles.kicker}>Neon reference data</span><h2>အသုံးပြုနိုင်သော စားချိန်များ</h2><p>ဒီစာရင်းကို User API container က Neon child branch ရှိ <code>MEAL_TYPES</code> table မှ ဖတ်ထားပါတယ်။</p></div>
+            <div className={styles.mealTypeList}>
+              {mealTypeStatus === "loading" && <span className={styles.dataMessage}>Database data ရယူနေသည်…</span>}
+              {mealTypeStatus === "error" && <span className={`${styles.dataMessage} ${styles.dataError}`}>Neon data မရရှိပါ—demo dashboard ကိုသာပြထားသည်။</span>}
+              {mealTypeStatus === "empty" && <span className={styles.dataMessage}>Active meal type မရှိသေးပါ။</span>}
+              {mealTypes.map((mealType) => <span className={styles.mealTypeChip} key={mealType.id}><strong>{mealType.nameMm}</strong><small>{mealType.code}</small></span>)}
+            </div>
+          </section>
+
           <section className={styles.moduleRow}>{modules.map((module, index) => <button key={module.code}><span>{["♙", "▦", "◫", "▤"][index] ?? "◇"}</span><div><strong>{module.name}</strong><small>{module.code.replaceAll("_", " ")}</small></div><b>›</b></button>)}</section>
-          <footer><span>{apiConnected ? "● API ချိတ်ဆက်ပြီး" : "◉ Static demo data"}</span><span>{time ? new Date(time.now).toLocaleString("en-MM", { timeZone: "Asia/Yangon" }) : "Asia/Yangon"}</span></footer>
+          <footer><span>{apiConnected ? "● Docker API + Neon ချိတ်ဆက်ပြီး" : "◉ Static demo data"}</span><span>{time ? new Date(time.now).toLocaleString("en-MM", { timeZone: "Asia/Yangon" }) : "Asia/Yangon"}</span></footer>
         </main>
       </div>
     </div>

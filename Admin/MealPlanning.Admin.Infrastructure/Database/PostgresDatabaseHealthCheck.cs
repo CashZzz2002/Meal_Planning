@@ -33,6 +33,8 @@ internal static class PostgresConnectionString
 {
     public static string Normalize(string value)
     {
+        value = UnquoteEnvironmentValue(value);
+
         if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
             (uri.Scheme != "postgres" && uri.Scheme != "postgresql"))
         {
@@ -76,4 +78,14 @@ internal static class PostgresConnectionString
         string.IsNullOrWhiteSpace(options)
             ? "-c TimeZone=Asia/Yangon"
             : $"{options} -c TimeZone=Asia/Yangon";
+
+    private static string UnquoteEnvironmentValue(string value)
+    {
+        var trimmed = value.Trim();
+        return trimmed.Length >= 2 &&
+               ((trimmed[0] == '"' && trimmed[^1] == '"') ||
+                (trimmed[0] == '\'' && trimmed[^1] == '\''))
+            ? trimmed[1..^1]
+            : trimmed;
+    }
 }
