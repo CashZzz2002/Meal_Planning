@@ -6,7 +6,7 @@
       "type": "edge",
       "request": "launch",
       "webRoot": "${workspaceFolder}",
-      "url": "http://localhost:3001",
+      "url": "http://localhost:3101",
       "timeout": 120000
     }
   ]

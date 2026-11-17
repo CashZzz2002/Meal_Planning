@@ -88,8 +88,8 @@ The applications become available after both Npgsql readiness checks reach Neon:
 
 | Service | URL |
 | --- | --- |
-| Admin portal | `http://localhost:3001` |
-| User portal | `http://localhost:3002` |
+| Admin portal | `http://localhost:3101` |
+| User portal | `http://localhost:3102` |
 | Admin Swagger | `http://localhost:5101/swagger` |
 | User Swagger | `http://localhost:5201/swagger` |
 | Admin API live/readiness | `http://localhost:5101/health/live`, `http://localhost:5101/health/ready` |
@@ -116,8 +116,8 @@ The default `Stage=dev` configuration runs with `Database:Enabled=false`. The Vi
 5. Visual Studio starts both local portals during Deploy, then builds and starts both API Docker containers. The four separate pages are:
    - Admin Swagger: `http://localhost:5101/swagger`
    - User Swagger: `http://localhost:5201/swagger`
-   - Admin portal: `http://localhost:3001`
-   - User portal: `http://localhost:3002`
+   - Admin portal: `http://localhost:3101`
+   - User portal: `http://localhost:3102`
 6. Press the red **Stop** button (**Shift+F5**). Both API containers and the portal process trees stop. Allow a few seconds for process/port cleanup before starting again.
 
 An already-open browser tab can still display its last rendered page after Stop. Refreshing it after shutdown fails to connect because the portal server has stopped. Deleting `.next` or browser caches is unnecessary for stopping the servers.
@@ -136,6 +136,8 @@ If the profile is missing, enable **Tools > Options > Environment > Preview Feat
 In **Build > Configuration Manager**, keep **Build** and **Deploy** checked for both WebPortal projects. These flags are included in the solution. JavaScript projects use the local Deploy phase to start their development servers.
 
 Each `.esproj` starts `Start-Portal.ps1 -SkipApiWait` during local Deploy because Visual Studio completes portal Deploy before starting API debugging. The launcher tracks that exact Visual Studio debugger session and ends on Stop. A Windows kill-on-close Job Object owns all Node descendants and also handles forced launcher termination. After F5 finishes, use both `/health/ready` endpoints to confirm the API containers reached Neon. Install dependencies explicitly before the first F5 run; Visual Studio's normal build uses those installed dependencies:
+
+When connected to a real Visual Studio session, each portal launcher runs `Prepare-VisualStudioLaunch.ps1` first. The preflight validates Docker Desktop, the private Neon child-branch environment, and port bindability; removes only exact stale MealPlanning containers/processes; and refuses to terminate an unrelated port owner. Portal ports use `3101` and `3102` because Windows/Hyper-V may reserve the common `3001`/`3002` range even when no process is listening.
 
 ```powershell
 dotnet restore .\MealPlanning.sln

@@ -43,6 +43,14 @@ namespace MealPlanning.LocalDevelopment
             }
         }
 
+        public void BeginLaunchWait()
+        {
+            // Connection and the Docker/Neon preflight happen before the portal
+            // process starts. Do not charge that work against debugger startup.
+            idle.Restart();
+            State = "Waiting for debugger";
+        }
+
         public bool HasEnded
         {
             get
@@ -68,7 +76,11 @@ namespace MealPlanning.LocalDevelopment
                         return false;
                     }
                     var failed = Convert.ToInt32(Get(build, "LastBuildInfo"), CultureInfo.InvariantCulture) != 0;
-                    var timedOut = idle.Elapsed > TimeSpan.FromSeconds(30);
+                    // Docker image deployment for a four-project startup can be
+                    // serialized and legitimately take longer than 30 seconds.
+                    // Match the browser launch timeout before treating the start
+                    // as abandoned; explicit build failures still stop at once.
+                    var timedOut = idle.Elapsed > TimeSpan.FromSeconds(120);
                     State = failed ? "Local build/deploy failed" : timedOut ? "Debugger startup timed out" : "Waiting for debugger";
                     return failed || timedOut;
                 }

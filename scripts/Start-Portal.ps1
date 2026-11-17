@@ -60,6 +60,13 @@ try {
         }
     }
 
+    if ($visualStudio) {
+        & (Join-Path $PSScriptRoot 'Prepare-VisualStudioLaunch.ps1') `
+            -Portal $Portal `
+            -RepositoryPath $repoPath
+        Write-LifecycleEvent 'Visual Studio preflight completed.'
+    }
+
     Add-Type -Path (Join-Path $PSScriptRoot 'OwnedProcess.cs')
     $nodeCommand = Get-Command node.exe -ErrorAction SilentlyContinue
     $localNode = Join-Path $repoPath '.run\tools\node\node.exe'
@@ -79,6 +86,7 @@ try {
         [string[]]$arguments,
         $repoPath)
     Write-LifecycleEvent "Owned Node PID=$($child.ProcessId)."
+    if ($visualStudio) { $visualStudio.BeginLaunchWait() }
 
     $lastState = $null
     while (-not $child.HasExited) {

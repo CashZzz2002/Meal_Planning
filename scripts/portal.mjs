@@ -39,13 +39,18 @@ try {
   const nextArgs = [command, ...args];
   if (command === "dev" || command === "start") {
     const endpoint = localEndpoint(settings.portalUrl);
+    // Visual Studio's JavaScript Project System can report the configured
+    // launch.json port as unavailable when a recent Node runtime binds the
+    // dev server only through localhost. A wildcard bind keeps the browser URL
+    // authoritative while allowing JSPS to recognize the server it launched.
+    const bindHostname = process.platform === "win32" ? "0.0.0.0" : endpoint.hostname;
     // The launch configuration is authoritative; Next must never silently pick another port.
     if (args.some((argument) => /^(--port|--hostname|-p|-H)(=|$)/.test(argument))) {
       throw new Error("Set Services__Admin__PortalUrl / Services__User__PortalUrl (or edit Config) to change a portal's host or port.");
     }
     if (requestedArgs.includes("--wait-for-api")) await waitForApi(settings);
-    await ensurePortAvailable(endpoint);
-    nextArgs.push("--hostname", endpoint.hostname, "--port", String(endpoint.port));
+    await ensurePortAvailable({ ...endpoint, hostname: bindHostname });
+    nextArgs.push("--hostname", bindHostname, "--port", String(endpoint.port));
   }
 
   console.log(`[${settings.name} portal] Stage=${settings.stage}; API=${settings.apiUrl}`);

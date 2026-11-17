@@ -54,8 +54,8 @@ Environment examples (non-secret):
 ```powershell
 $env:Stage = 'dev'
 $env:Services__Admin__ApiUrl = 'http://localhost:5101'
-$env:Services__Admin__PortalUrl = 'http://localhost:3001'
-$env:Services__Admin__AllowedOrigins__0 = 'http://localhost:3001'
+$env:Services__Admin__PortalUrl = 'http://localhost:3101'
+$env:Services__Admin__AllowedOrigins__0 = 'http://localhost:3101'
 ```
 
 ### Local secrets
@@ -87,6 +87,8 @@ The sync command reads the selected shared config and environment overrides, the
 Both portals and both APIs have startup action **Start** in **All portals and APIs**. The APIs select `Container (Dockerfile)` and receive the ignored root `.env.local`; the portals run locally. Both `.esproj` projects also have **Build** and **Deploy** selected in Configuration Manager for every solution configuration. JSPS uses local Deploy to execute the startup command; selecting only Start opens a browser without starting its server. Here, Deploy means starting the local development server. Each portal's `.vscode/launch.json` opens its own URL; the API container profiles publish ports 5101 and 5201.
 
 Visual Studio completes local portal Deploy **before** starting API container debugging, so the `.esproj` commands use `-SkipApiWait -TrackVisualStudio` to avoid a startup deadlock. The portal launcher starts Next.js on the configured fixed port and observes the exact ancestor Visual Studio instance's debugger session. Run and break modes keep it alive; Stop ends it. This also closes the native command window, which JSPS otherwise leaves running. Other Visual Studio instances are isolated by process ID and solution path. Verify both API `/health/ready` endpoints after F5 completes.
+
+For a real Visual Studio session, `Prepare-VisualStudioLaunch.ps1` runs before Node starts. It validates Docker and the ignored Neon child-branch environment, removes an exact stale MealPlanning portal/API process or fixed-name API container, checks that Windows can bind the configured ports, and stops with a diagnostic instead of killing an unrelated owner. Local portals use `3101`/`3102`; `3001`/`3002` can fall inside a Windows/Hyper-V excluded TCP range without appearing as a listening process.
 
 The Windows launcher creates a suspended Node process, assigns it to a **kill-on-close Job Object**, and only then resumes it. All descendants inherit that job. It also tracks the exact parent command process; normal exit, parent-only termination, and forced launcher termination release the portal tree. Admin and User have separate owners/jobs. The API processes are independently owned by Visual Studio.
 
