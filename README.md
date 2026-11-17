@@ -6,6 +6,10 @@ Myanmar-focused weekly meal planning, township warehouse operations, shopping an
 
 ```text
 MealPlanning.sln
+├─ Config/                            # .Config solution folder; Stage-based non-secret settings
+├─ Shared/
+│  ├─ MealPlanning.Shared.Hosting/     # Configuration, host options, logging and health helpers
+│  └─ MealPlanning.Shared.Hosting.Tests/
 ├─ Admin/
 │  ├─ MealPlanning.Admin.Domain/
 │  ├─ MealPlanning.Admin.Application/
@@ -26,7 +30,9 @@ MealPlanning.sln
 └─ compose.yaml
 ```
 
-Each side follows `Api -> Infrastructure -> Application -> Domain`. The Next.js projects call their APIs over HTTP and do not reference server-side Domain projects. The `.esproj` files make both Next.js portals visible in the Visual Studio solution.
+Each side follows `Api -> Infrastructure -> Application -> Domain`. API hosts also reference `Shared.Hosting`, which has no business-project dependencies. The Next.js projects call their APIs over HTTP. Their `.esproj` files are independent Visual Studio startup projects.
+
+The current APIs expose health, Myanmar time and module-directory endpoints, with Swagger in the `dev` stage. Portal meal, order and warehouse data is still presentation/demo data. Configuration and process-lifecycle verification do not establish database persistence or a completed business workflow.
 
 ## Myanmar-time policy
 
@@ -53,8 +59,8 @@ The source SQL hash is embedded in the generated schema so source changes fail c
 
 - .NET 8 SDK or a newer SDK capable of targeting .NET 8
 - Node.js 24 and npm
-- Neon CLI 9.3 or newer
-- Access to the linked Neon project
+- Visual Studio with the ASP.NET/web and JavaScript/TypeScript tooling for the F5 workflow
+- For database-enabled mode: Neon CLI 9.3 or newer and access to the linked Neon project
 
 Authenticate and pull the linked production branch environment without printing secrets:
 
@@ -80,6 +86,8 @@ The applications become available after both Npgsql readiness checks reach Neon:
 | --- | --- |
 | Admin portal | `http://localhost:3001` |
 | User portal | `http://localhost:3002` |
+| Admin Swagger | `http://localhost:5101/swagger` |
+| User Swagger | `http://localhost:5201/swagger` |
 | Admin API live/readiness | `http://localhost:5101/health/live`, `http://localhost:5101/health/ready` |
 | User API live/readiness | `http://localhost:5201/health/live`, `http://localhost:5201/health/ready` |
 
@@ -89,53 +97,70 @@ Stop the stack without deleting database data:
 docker compose down
 ```
 
-Neon database data is not stored in a local Docker volume.
+Neon database data is not stored in a local Docker volume. Compose supplies each portal's `NEXT_PUBLIC_API_URL` as a **build argument**. Rebuild the portal image after changing its public API URL; a runtime environment change cannot update a compiled browser bundle.
 
 ## Run APIs and portals locally
 
-The APIs read the pooled Neon URL from .NET User Secrets. The direct URL is reserved for schema migrations.
+The default `Stage=dev` configuration runs with `Database:Enabled=false`. To enable Neon, configure the pooled connection and enablement in each API's own .NET User Secrets. See [Config/README.md](Config/README.md) for settings, safe secret commands, path resolution, stage templates and precedence.
 
-### Recommended: one command
+### Recommended: Visual Studio (F5 / Stop)
 
-Run this from PowerShell in the repository folder:
+1. If you previously used the PowerShell launcher, run `.\scripts\Stop-Local.ps1` first to release its processes and ports.
+2. Install dependencies and synchronize the native launch settings once (commands below).
+3. Open `MealPlanning.sln`, select **All portals and APIs**, and press **F5**. Reload the solution after changing shared launch settings if Visual Studio still shows an old profile.
+4. Visual Studio starts all four projects and opens four separate pages:
+   - Admin Swagger: `http://localhost:5101/swagger`
+   - User Swagger: `http://localhost:5201/swagger`
+   - Admin portal: `http://localhost:3001`
+   - User portal: `http://localhost:3002`
+5. Press the red **Stop** button (**Shift+F5**). Both APIs and the portal process trees stop. Allow a few seconds for process/port cleanup before starting again.
+
+An already-open browser tab can still display its last rendered page after Stop. Refreshing it after shutdown fails to connect because the portal server has stopped. Deleting `.next` or browser caches is unnecessary for stopping the servers.
+
+The shared `MealPlanning.slnLaunch` profile uses these startup actions:
+
+| Project | Action | Debug target |
+| --- | --- | --- |
+| `MealPlanning.Admin.Api` | Start | `http` |
+| `MealPlanning.User.Api` | Start | `http` |
+| `MealPlanning.Admin.WebPortal` | Start | `Launch Admin portal` (Edge) |
+| `MealPlanning.User.WebPortal` | Start | `Launch User portal` (Edge) |
+
+If the profile is missing, enable **Tools > Options > Environment > Preview Features > Enable Multi-Project Launch Profiles** in Visual Studio 2022 17.11 or later (newer versions place Preview Features under All Settings). You can also right-click the solution, open **Configure Startup Projects**, and set all four projects to **Start**.
+
+In **Build > Configuration Manager**, keep **Build** and **Deploy** checked for both WebPortal projects. These flags are included in the solution. JavaScript projects use the local Deploy phase to start their development servers.
+
+Each `.esproj` starts `Start-Portal.ps1` during local Deploy, before API debugging begins. The launcher tracks that exact Visual Studio debugger session and ends on Stop. A Windows kill-on-close Job Object owns all Node descendants and also handles forced launcher termination. Install dependencies explicitly before the first F5 run; Visual Studio's normal build uses those installed dependencies:
+
+```powershell
+dotnet restore .\MealPlanning.sln
+npm ci
+npm --prefix .\Admin\admin-web ci
+npm --prefix .\User\user-web ci
+npm run config:sync
+```
+
+Portal lifecycle diagnostics are written to `.run/logs/portal-Admin-owner.log` and `.run/logs/portal-User-owner.log`. A temporarily locked or unwritable diagnostic log does not interrupt portal startup or cleanup.
+
+Change shared URLs in `Config/custom-setting-dev.json`, run `npm run config:sync`, and reload the solution. `npm run config:check` verifies that native API/browser launch URLs agree with the selected Stage. Full configuration details are in [Config/README.md](Config/README.md).
+
+### Standalone PowerShell launcher
+
+For a deliberately background-running stack, run these commands from the application folder:
 
 ```powershell
 .\scripts\Start-Local.ps1
-```
-
-This starts both APIs and both Next.js portals in the background, waits until all four are ready, stores logs under the ignored `.run\logs` folder, and opens both portals. Run it again safely if the services are already running.
-
-To stop only the Meal Planning processes started by that script:
-
-```powershell
+# When finished:
 .\scripts\Stop-Local.ps1
 ```
 
-To preview only the two UIs with temporary static data (no APIs or database required):
+This launcher builds the .NET solution, starts four background services, stores logs under ignored `.run\logs`, and opens both Swagger pages and portals. It records process IDs and creation times in `.run\local-processes.json`; the processes keep running after the command returns and are controlled by `Stop-Local.ps1`. Stop the script-managed stack before switching to Visual Studio F5 or Build/Rebuild.
 
-```powershell
-.\scripts\Start-Local.ps1 -PortalsOnly
-```
+Process-state snapshots are replaced atomically, with a bounded retry for temporary file locks. If startup fails, the launcher stops every process it started using retained process handles, including a process whose state could not yet be saved.
 
-Stop the script-managed services before using Visual Studio Build/Rebuild. Running the APIs from `Start-Local.ps1` and rebuilding the same APIs in Visual Studio at the same time causes Windows DLL file-lock errors.
+An explicit UI-only static-demo preview is available with `.\scripts\Start-Local.ps1 -PortalsOnly`; finish it with `.\scripts\Stop-Local.ps1` as well.
 
-Portal URLs:
-
-- Admin Portal: `http://localhost:3001`
-- User Portal: `http://localhost:3002`
-
-API URLs:
-
-- Admin API: `http://localhost:5101/health/live`
-- User API: `http://localhost:5201/health/live`
-
-`/weatherforecast` is not part of this application and should not be used.
-
-### Visual Studio
-
-Open `MealPlanning.sln`, select the `Portals only (static demo)` solution launch profile, then press Start. For API integration work, select `All portals and APIs` instead. API projects no longer open browser tabs automatically; `/health/live` returning `Healthy` is an API health check, not a portal UI.
-
-Use either the Visual Studio launch profile or `Start-Local.ps1`, not both at the same time.
+API liveness URLs are `http://localhost:5101/health/live` and `http://localhost:5201/health/live`. `/weatherforecast` is not part of this application.
 
 ### DLL file-lock troubleshooting
 
@@ -151,24 +176,36 @@ If Visual Studio itself started the APIs, press the red **Stop** button before r
 
 ### Manual commands
 
+Run each command in its own terminal:
+
 ```powershell
-dotnet run --project .\Admin\MealPlanning.Admin.Api --urls http://localhost:5101
-dotnet run --project .\User\MealPlanning.User.Api --urls http://localhost:5201
-npm --prefix .\Admin\admin-web run dev -- --port 3001
-npm --prefix .\User\user-web run dev -- --port 3002
+dotnet run --project .\Admin\MealPlanning.Admin.Api --launch-profile http
+dotnet run --project .\User\MealPlanning.User.Api --launch-profile http
+.\scripts\Start-Portal.ps1 -Portal Admin
+.\scripts\Start-Portal.ps1 -Portal User
 ```
 
-This mode verifies API/UI behavior. Database acceptance also requires both `/health/ready` endpoints and persisted read-back checks against Neon.
+Open the URLs above and use **Ctrl+C** in each terminal when finished. For cross-platform portal commands, use `npm --prefix Admin/admin-web run dev` and `npm --prefix User/user-web run dev`; the Windows Visual Studio launcher adds Job Object lifetime management.
+
+Database acceptance requires both `/health/ready` endpoints **with the database enabled** and persisted read-back checks against Neon. An empty readiness-check list in database-disabled mode is not database acceptance.
 
 ## Validation commands
 
 ```powershell
 dotnet restore .\MealPlanning.sln
-dotnet build .\MealPlanning.sln --no-restore
-dotnet test .\MealPlanning.sln --no-build
+dotnet build .\MealPlanning.sln --configuration Release --no-restore
+dotnet test .\MealPlanning.sln --configuration Release --no-build --no-restore
+npm run test:tooling
+npm run config:check
+npm --prefix .\Admin\admin-web run lint
+npm --prefix .\User\user-web run lint
 npm --prefix .\Admin\admin-web run build
 npm --prefix .\User\user-web run build
+.\scripts\Test-LocalLifecycle.ps1 -Configuration Release
+git diff --check
 ```
+
+The lifecycle check needs free local ports. It runs the actual `.esproj` startup commands under command-line owners, validates Swagger/health/time/CORS/portal responses, checks parent-only and forced-launcher shutdown and restart, and leaves services stopped. It disables database access for the test. Changes to native launch behavior also require a real Visual Studio F5/Stop check.
 
 Production dependency audit:
 

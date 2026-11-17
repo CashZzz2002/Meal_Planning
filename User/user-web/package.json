@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "node ../../scripts/portal.mjs User dev",
+    "build": "node ../../scripts/portal.mjs User build",
+    "start": "node ../../scripts/portal.mjs User start",
     "lint": "eslint"
   },
   "dependencies": {

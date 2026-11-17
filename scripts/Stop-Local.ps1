@@ -11,18 +11,31 @@ if (-not (Test-Path -LiteralPath $statePath)) {
 }
 
 function Stop-ProcessTree {
-    param([int]$ProcessId)
+    param([System.Diagnostics.Process]$Process)
 
-    $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId = $ProcessId" -ErrorAction SilentlyContinue)
+    $null = $Process.Handle
+    $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId = $($Process.Id)" -ErrorAction SilentlyContinue)
     foreach ($child in $children) {
-        Stop-ProcessTree -ProcessId $child.ProcessId
+        $childProcess = Get-Process -Id $child.ProcessId -ErrorAction SilentlyContinue
+        if ($childProcess -and $childProcess.StartTime.ToUniversalTime() -ge $Process.StartTime.ToUniversalTime()) {
+            Stop-ProcessTree -Process $childProcess
+        }
     }
-    Stop-Process -Id $ProcessId -Force -ErrorAction SilentlyContinue
+    Stop-Process -InputObject $Process -Force -ErrorAction SilentlyContinue
 }
 
 $services = Get-Content -Raw -LiteralPath $statePath | ConvertFrom-Json
 foreach ($service in $services) {
-    Stop-ProcessTree -ProcessId $service.ProcessId
+    $process = Get-Process -Id $service.ProcessId -ErrorAction SilentlyContinue
+    if (-not $process) { continue }
+    if (-not $service.ProcessStartTimeUtc) {
+        throw 'Legacy process state has no creation time. Stop its original owning session before removing that state file.'
+    }
+    if ($process.StartTime.ToUniversalTime().ToString('O') -ne $service.ProcessStartTimeUtc) {
+        Write-Output "Skipped stale process identity: $($service.Name)"
+        continue
+    }
+    Stop-ProcessTree -Process $process
     Write-Output "Stopped: $($service.Name)"
 }
 

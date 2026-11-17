@@ -4,7 +4,10 @@
     "build": "dotnet build MealPlanning.sln --no-restore && npm run build:admin && npm run build:user",
     "build:admin": "npm --prefix Admin/admin-web run build",
     "build:user": "npm --prefix User/user-web run build",
-    "test": "dotnet test MealPlanning.sln --no-build --no-restore"
+    "test": "dotnet test MealPlanning.sln --no-build --no-restore",
+    "config:sync": "node scripts/sync-launch-settings.mjs",
+    "config:check": "node scripts/sync-launch-settings.mjs --check",
+    "test:tooling": "node --test scripts/public-config.test.mjs scripts/launch-settings.test.mjs"
   },
   "dependencies": {
     "@neon/config": "^1.14.0",

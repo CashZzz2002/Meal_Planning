@@ -8,9 +8,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.6" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\MealPlanning.Admin.Domain\MealPlanning.Admin.Domain.csproj" />
     <ProjectReference Include="..\MealPlanning.Admin.Application\MealPlanning.Admin.Application.csproj" />
     <ProjectReference Include="..\MealPlanning.Admin.Infrastructure\MealPlanning.Admin.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Shared\MealPlanning.Shared.Hosting\MealPlanning.Shared.Hosting.csproj" />
   </ItemGroup>
+
+  <Import Project="..\..\Shared\MealPlanning.Shared.Hosting\ConfigAssets.targets" />
 
 </Project>

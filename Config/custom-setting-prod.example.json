@@ -1,0 +1,17 @@
+{
+  "Database": { "Enabled": true },
+  "HttpsRedirection": { "Enabled": true },
+  "Swagger": { "Enabled": false },
+  "Services": {
+    "Admin": {
+      "ApiUrl": "[ADMIN_API_URL]",
+      "PortalUrl": "[ADMIN_PORTAL_URL]",
+      "AllowedOrigins": ["[ADMIN_PORTAL_URL]"]
+    },
+    "User": {
+      "ApiUrl": "[USER_API_URL]",
+      "PortalUrl": "[USER_PORTAL_URL]",
+      "AllowedOrigins": ["[USER_PORTAL_URL]"]
+    }
+  }
+}

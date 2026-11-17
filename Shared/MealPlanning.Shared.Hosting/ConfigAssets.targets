@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <MealPlanningConfigDirectory Condition="'$(MealPlanningConfigDirectory)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../Config'))</MealPlanningConfigDirectory>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="$(MealPlanningConfigDirectory)/appsettings.json;$(MealPlanningConfigDirectory)/custom-setting-*.json"
+             Exclude="$(MealPlanningConfigDirectory)/*.example.json"
+             Link="Config/%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

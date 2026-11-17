@@ -1,61 +1,35 @@
-using MealPlanning.Admin.Application.Time;
-using MealPlanning.Admin.Infrastructure;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
-using System.Text.Json;
+using MealPlanning.Admin.Api;
+using MealPlanning.Admin.Api.Endpoints;
+using MealPlanning.Hosting;
+using MealPlanning.Hosting.Configuration;
+using MealPlanning.Hosting.Health;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddProblemDetails();
-builder.Services.AddHealthChecks();
-builder.Services.AddAdminInfrastructure(builder.Configuration);
-builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy
-    .WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [])
-    .AllowAnyHeader()
-    .AllowAnyMethod()));
+builder.AddStageConfig(args, typeof(Program).Assembly);
+builder.AddAdminApiServices();
 
 var app = builder.Build();
 app.UseExceptionHandler();
-if (builder.Configuration.GetValue<bool>("HttpsRedirection:Enabled"))
+if (app.Services.GetRequiredService<IOptions<HttpsRedirectionOptions>>().Value.Enabled)
 {
     app.UseHttpsRedirection();
 }
 app.UseCors();
-
-app.MapHealthChecks("/health/live", new() { Predicate = _ => false });
-app.MapHealthChecks("/health/ready", new HealthCheckOptions
+if (app.Services.GetRequiredService<IOptions<SwaggerOptions>>().Value.Enabled)
 {
-    ResponseWriter = WriteHealthResponse
-});
-app.MapGet("/api/system/time", (IMyanmarClock clock) => Results.Ok(new
-{
-    clock.Now,
-    clock.TimeZoneId
-}));
-app.MapGet("/api/system/modules", () => Results.Ok(new[]
-{
-    new { Code = "IAM", Name = "Identity & Access" },
-    new { Code = "SETUP", Name = "Setup" },
-    new { Code = "CATALOG", Name = "Food Catalog" },
-    new { Code = "WAREHOUSE", Name = "Warehouse" },
-    new { Code = "ORDER", Name = "Order Operations" }
-}));
-
-app.Run();
-
-static Task WriteHealthResponse(HttpContext context, HealthReport report)
-{
-    context.Response.ContentType = "application/json";
-    return JsonSerializer.SerializeAsync(context.Response.Body, new
-    {
-        status = report.Status.ToString(),
-        checks = report.Entries.Select(entry => new
-        {
-            name = entry.Key,
-            status = entry.Value.Status.ToString(),
-            entry.Value.Description,
-            entry.Value.Data
-        })
-    });
+    app.UseSwagger();
+    app.UseSwaggerUI(options => options.SwaggerEndpoint("v1/swagger.json", "Meal Planning Admin API v1"));
 }
+
+app.MapMealPlanningHealthChecks();
+app.MapAdminSystemEndpoints();
+if (app.Logger.IsEnabled(LogLevel.Information))
+{
+    var stage = app.Services.GetRequiredService<IOptions<StageOptions>>().Value;
+    var database = app.Services.GetRequiredService<IOptions<DatabaseOptions>>().Value;
+    HostingLog.Startup(app.Logger, "Admin API", stage.Stage, database.Enabled);
+}
+app.Run();
 
 public partial class Program;

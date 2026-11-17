@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch User portal",
+      "type": "edge",
+      "request": "launch",
+      "webRoot": "${workspaceFolder}",
+      "url": "http://localhost:3002",
+      "timeout": 120000
+    }
+  ]
+}

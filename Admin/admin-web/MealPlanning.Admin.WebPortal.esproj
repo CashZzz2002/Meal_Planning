@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.VisualStudio.JavaScript.Sdk/1.0.7204101">
   <PropertyGroup>
-    <StartupCommand>npm run dev -- --port 3001</StartupCommand>
+    <StartupCommand>powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "../../scripts/Start-Portal.ps1" -Portal Admin -SkipApiWait -TrackVisualStudio</StartupCommand>
     <BuildCommand>npm run build</BuildCommand>
     <ShouldRunBuildScript>false</ShouldRunBuildScript>
+    <ShouldRunNpmInstall>false</ShouldRunNpmInstall>
   </PropertyGroup>
 </Project>
