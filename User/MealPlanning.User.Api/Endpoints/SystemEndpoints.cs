@@ -4,9 +4,12 @@ namespace MealPlanning.User.Api.Endpoints;
 
 internal static class SystemEndpoints
 {
-    public static IEndpointRouteBuilder MapUserSystemEndpoints(this IEndpointRouteBuilder endpoints)
+    public static IEndpointRouteBuilder MapUserSystemEndpoints(
+        this IEndpointRouteBuilder endpoints,
+        bool requireAuthentication = false)
     {
         var system = endpoints.MapGroup("/api/system").WithTags("System");
+        if (requireAuthentication) system.RequireAuthorization("UserPortal");
         system.MapGet("/time", (IMyanmarClock clock) => TypedResults.Ok(new
         {
             clock.Now,

@@ -45,9 +45,10 @@ Both APIs import `Shared/MealPlanning.Shared.Hosting/ConfigAssets.targets`. It l
 - `Swagger:Enabled` controls both the Swagger middleware and synchronized API browser launch. It is enabled in `dev` and disabled in the other templates.
 - `Database:Enabled` defaults to `false`. Enabling it requires `ConnectionStrings:MealPlanner` or the standard Neon `DATABASE_URL` from a private source. `ConnectionStrings:MealPlanner` takes precedence when both exist.
 - `HttpsRedirection:Enabled` controls HTTP-to-HTTPS redirection; it is disabled for the local HTTP profiles.
+- `Email:Enabled` controls Resend-backed invitation and verification endpoints. Enabling it requires `Email:Provider=Resend`, a sender name/address, and private `RESEND_APITOKEN` configuration.
 - Logging uses the built-in structured JSON console formatter, with UTC audit-log timestamps. Business time still uses the existing `IMyanmarClock` in `Asia/Yangon`.
 
-`StageOptions`, `ServiceEndpointsOptions`, `DatabaseOptions`, `SwaggerOptions`, and `HttpsRedirectionOptions` are bound with the options pattern and validated on startup. Admin and User register only their own service endpoint options and Infrastructure. Shared.Hosting references no business project.
+`StageOptions`, `ServiceEndpointsOptions`, `DatabaseOptions`, `SwaggerOptions`, `HttpsRedirectionOptions`, and `EmailOptions` are bound with the options pattern and validated on startup. Admin and User register only their own service endpoint options and Infrastructure. Shared.Hosting references no business project.
 
 Environment examples (non-secret):
 
@@ -70,6 +71,14 @@ dotnet user-secrets set 'Database:Enabled' 'true' --project .\User\MealPlanning.
 ```
 
 Use the pooled connection for API traffic. Deployed hosts receive `ConnectionStrings__MealPlanner` or `DATABASE_URL` from the approved environment/secret store. Direct `DATABASE_URL_UNPOOLED` connections remain reserved for migrations and verification. The connection normalizer accepts Neon URI values with or without the surrounding quotes emitted by environment-file tooling.
+
+Visual Studio Docker profiles receive the ignored root `.env.local`, not Development User Secrets. Configure the Resend key there through hidden input:
+
+```powershell
+.\scripts\Set-ResendSecret.ps1
+```
+
+The resulting private values are `RESEND_APITOKEN`, `Email__Enabled=true`, and `Email__DevelopmentRecipient`. The recipient override is accepted only for the `dev` stage and routes test messages to the Resend account inbox. Do not copy the API token into shared JSON, source, launch settings, screenshots, or logs.
 
 For SIT/UAT/preprod/prod, copy the matching example to `custom-setting-<stage>.json`, replace its public placeholders, and supply private settings externally. Real non-dev files are ignored by Git; review their non-secret contents before packaging them.
 

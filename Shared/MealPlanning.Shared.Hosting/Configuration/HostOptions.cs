@@ -30,3 +30,13 @@ public sealed class HttpsRedirectionOptions
     public const string SectionName = "HttpsRedirection";
     public bool Enabled { get; set; }
 }
+
+public sealed class EmailOptions
+{
+    public const string SectionName = "Email";
+    public bool Enabled { get; set; }
+    public string Provider { get; set; } = string.Empty;
+    public string FromName { get; set; } = string.Empty;
+    public string FromAddress { get; set; } = string.Empty;
+    public string DevelopmentRecipient { get; set; } = string.Empty;
+}

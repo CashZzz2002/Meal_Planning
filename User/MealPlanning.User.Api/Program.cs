@@ -16,6 +16,9 @@ if (app.Services.GetRequiredService<IOptions<HttpsRedirectionOptions>>().Value.E
     app.UseHttpsRedirection();
 }
 app.UseCors();
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
 if (app.Services.GetRequiredService<IOptions<SwaggerOptions>>().Value.Enabled)
 {
     app.UseSwagger();
@@ -23,11 +26,13 @@ if (app.Services.GetRequiredService<IOptions<SwaggerOptions>>().Value.Enabled)
 }
 
 app.MapMealPlanningHealthChecks();
-app.MapUserSystemEndpoints();
 var database = app.Services.GetRequiredService<IOptions<DatabaseOptions>>().Value;
+var email = app.Services.GetRequiredService<IOptions<EmailOptions>>().Value;
+app.MapUserSystemEndpoints(database.Enabled);
 if (database.Enabled)
 {
-    app.MapUserReferenceEndpoints();
+    app.MapUserAuthenticationEndpoints(email.Enabled);
+    app.MapUserReferenceEndpoints(requireAuthentication: true);
 }
 if (app.Logger.IsEnabled(LogLevel.Information))
 {

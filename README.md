@@ -32,7 +32,7 @@ MealPlanning.sln
 
 Each side follows `Api -> Infrastructure -> Application -> Domain`. API hosts also reference `Shared.Hosting`, which has no business-project dependencies. The Next.js projects call their APIs over HTTP. Their `.esproj` files are independent Visual Studio startup projects.
 
-The current APIs expose health, Myanmar time and module-directory endpoints, with Swagger in the `dev` stage. The User API also exposes `GET /api/reference/meal-types` through the Application and Infrastructure layers, and the User portal displays that live Neon reference data separately from its demo dashboard. Other portal meal, order and warehouse data is still presentation/demo data.
+The current APIs expose health, Myanmar time and module-directory endpoints, with Swagger in the `dev` stage. Both bounded contexts have database-backed username/password login, role-scoped opaque sessions, HttpOnly cookies and API authorization middleware. Resend-backed email enrollment adds maker/checker Admin requests, `SUPER_ADMIN` approval, one-time invitation links, User registration, and expiring six-digit email verification. The User API also exposes `GET /api/reference/meal-types` through the Application and Infrastructure layers, and the User portal displays that live Neon reference data separately from its demo dashboard. Other portal meal, order and warehouse data is still presentation/demo data.
 
 ## Myanmar-time policy
 
@@ -51,7 +51,10 @@ The supplied 69-table Oracle schema is converted reproducibly by `scripts/Conver
 2. `001_schema.sql` — creates 69 tables, native UUID/boolean/JSONB types, 69 primary keys and 128 foreign keys.
 3. `002_foreign_key_indexes.sql` — creates 128 foreign-key indexes.
 4. `003_seed_reference_data.sql` — idempotently seeds menus, units, meal types and payment methods.
-5. `verify_schema.sql` — reports table, key, seed and timezone evidence.
+5. `004_authentication.sql` — adds normalized usernames, Admin/User roles and revocable database sessions.
+6. `005_master_admin_role.sql` — adds the trusted `SUPER_ADMIN` bootstrap role used for later Admin maker/checker approval.
+7. `006_email_authentication.sql` — adds case-insensitive unique user emails, Admin account requests, and expiring hashed email challenges.
+8. `verify_schema.sql` — reports table, key, seed, authentication and timezone evidence.
 
 The source SQL hash is embedded in the generated schema so source changes fail conversion until reviewed.
 
@@ -72,6 +75,41 @@ neon env pull --file .env.local
 ```
 
 Do not place registry credentials, database passwords or connection strings in the repository.
+
+### Local authentication bootstrap
+
+Apply the authentication migration only to the selected non-production Neon child branch. The tool reads the ignored direct connection from `.env.local` and refuses protected branch names:
+
+```powershell
+dotnet run --project .\scripts\MealPlanning.AuthSeeder -- migrate
+dotnet run --project .\scripts\MealPlanning.AuthSeeder -- seed
+dotnet run --project .\scripts\MealPlanning.AuthSeeder -- verify
+dotnet run --project .\scripts\MealPlanning.AuthSeeder -- bootstrap-master-admin
+dotnet run --project .\scripts\MealPlanning.AuthSeeder -- promote-master-admin admin
+dotnet run --project .\scripts\MealPlanning.AuthSeeder -- verify-master-admin
+dotnet run --project .\scripts\MealPlanning.AuthSeeder -- verify-email-auth
+```
+
+The `seed` command prompts for one hidden bootstrap password and upserts the local `admin` and `user` accounts with their matching roles. Only a salted PBKDF2-SHA256 hash is persisted; the password is never written to SQL, source, command history or logs. Rotate bootstrap credentials before any shared or production deployment.
+
+The `bootstrap-master-admin` command interactively requests the trusted administrator's username, display name, email and hidden password, then executes parameterized inserts inside one transaction. It assigns both `ADMIN` (current portal access) and `SUPER_ADMIN` (future maker/checker approval) without placing credentials in SQL or shell history. Run it only against the selected non-production child branch.
+
+When a secure local Admin credential already exists, `promote-master-admin <username>` adds only the `SUPER_ADMIN` assignment and preserves its current password hash. It refuses inactive, passwordless or non-Admin accounts.
+
+Configure the Resend test sender without placing its API key in source or PowerShell history:
+
+```powershell
+.\scripts\Set-ResendSecret.ps1
+```
+
+The script prompts with hidden API-key input plus the Resend account email, then writes `RESEND_APITOKEN`, `Email__Enabled=true`, and `Email__DevelopmentRecipient` only to the ignored `.env.local`. Restart both API containers afterward. `onboarding@resend.dev` is the development sender; without a verified domain, all development messages are explicitly marked `[DEV]` and redirected to that Resend account inbox while retaining the requested account address in the message body.
+
+Email authentication routes:
+
+- Admin: `/request-admin` -> a `SUPER_ADMIN` reviews `/admin-requests` -> Resend invitation -> `/accept-invitation` -> login.
+- User: `/register` -> Resend six-digit code -> `/verify-email` -> login.
+
+Invitation tokens and verification codes are stored only as hashes. Admin invitations expire after 24 hours; User codes expire after 10 minutes and allow at most five failed attempts.
 
 Visual Studio must be able to resolve `node.exe`. If a machine-wide Node installation is unavailable, `Start-Portal.ps1` also accepts an ignored portable Node 24 runtime at `.run/tools/node/node.exe`.
 

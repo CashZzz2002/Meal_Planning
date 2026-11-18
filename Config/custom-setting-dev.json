@@ -2,6 +2,11 @@
   "Swagger": {
     "Enabled": true
   },
+  "Email": {
+    "Provider": "Resend",
+    "FromName": "Meal Planning",
+    "FromAddress": "onboarding@resend.dev"
+  },
   "Services": {
     "Admin": {
       "ApiUrl": "http://localhost:5101",

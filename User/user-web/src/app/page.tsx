@@ -6,6 +6,7 @@ import styles from "./page.module.css";
 type ModuleInfo = { code: string; name: string };
 type TimeInfo = { now: string; timeZoneId: string };
 type MealTypeInfo = { id: string; code: string; nameMm: string; sortOrder: number };
+type CurrentUser = { displayName: string };
 type MealTypeStatus = "loading" | "ready" | "empty" | "error";
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:5201";
 const demoModules: ModuleInfo[] = [
@@ -15,6 +16,18 @@ const demoModules: ModuleInfo[] = [
   { code: "ORDER", name: "မှာယူထားမှုများ" },
 ];
 
+class AuthenticationRequiredError extends Error {}
+
+async function authenticatedJson<T>(path: string): Promise<T> {
+  const response = await fetch(`${apiUrl}${path}`, { credentials: "include" });
+  if (response.status === 401) {
+    window.location.replace("/login");
+    throw new AuthenticationRequiredError();
+  }
+  if (!response.ok) throw new Error(`${path} unavailable`);
+  return response.json();
+}
+
 export default function UserHome() {
   const [modules, setModules] = useState<ModuleInfo[]>(demoModules);
   const [time, setTime] = useState<TimeInfo | null>(null);
@@ -22,34 +35,34 @@ export default function UserHome() {
   const [mealTypeStatus, setMealTypeStatus] = useState<MealTypeStatus>("loading");
   const [apiConnected, setApiConnected] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState("Meal Planner");
 
   useEffect(() => {
     Promise.all([
-      fetch(`${apiUrl}/api/system/modules`).then((response) => {
-        if (!response.ok) throw new Error("User modules unavailable");
-        return response.json();
-      }),
-      fetch(`${apiUrl}/api/system/time`).then((response) => {
-        if (!response.ok) throw new Error("User time unavailable");
-        return response.json();
-      }),
-      fetch(`${apiUrl}/api/reference/meal-types`).then((response) => {
-        if (!response.ok) throw new Error("Meal types unavailable");
-        return response.json();
-      }),
-    ]).then(([moduleData, timeData, mealTypeData]: [ModuleInfo[], TimeInfo, MealTypeInfo[]]) => {
+      authenticatedJson<ModuleInfo[]>("/api/system/modules"),
+      authenticatedJson<TimeInfo>("/api/system/time"),
+      authenticatedJson<MealTypeInfo[]>("/api/reference/meal-types"),
+      authenticatedJson<CurrentUser>("/api/auth/me"),
+    ]).then(([moduleData, timeData, mealTypeData, user]) => {
       setModules(moduleData);
       setTime(timeData);
       setMealTypes(mealTypeData);
+      setCurrentUser(user.displayName);
       setMealTypeStatus(mealTypeData.length > 0 ? "ready" : "empty");
       setApiConnected(true);
-    }).catch(() => {
+    }).catch((error: unknown) => {
+      if (error instanceof AuthenticationRequiredError) return;
       setTime({ now: new Date().toISOString(), timeZoneId: "Asia/Yangon" });
       setMealTypes([]);
       setMealTypeStatus("error");
       setApiConnected(false);
     });
   }, []);
+
+  async function logout() {
+    await fetch(`${apiUrl}/api/auth/logout`, { method: "POST", credentials: "include" }).catch(() => undefined);
+    window.location.replace("/login");
+  }
 
   return (
     <div className={styles.shell}>
@@ -66,7 +79,7 @@ export default function UserHome() {
         </nav>
         <div className={styles.planCard}><span>✦</span><strong>ဒီအပတ် 72% ပြီးပါပြီ</strong><div><i /></div><small>ဟင်းလျာ ၅ မျိုး စီစဉ်ပြီး</small></div>
         <nav className={styles.bottomNav}><button><i>?</i><span>အကူအညီ</span></button><button><i>⚙</i><span>ဆက်တင်များ</span></button></nav>
-        <div className={styles.profile}><div className={styles.avatar}>MS</div><div><strong>မမေစန္ဒီ</strong><small>အိမ်သား ၄ ယောက်</small></div><span>⋮</span></div>
+        <div className={styles.profile}><div className={styles.avatar}>MP</div><div><strong>{currentUser}</strong><small>Meal planning user</small></div><button className={styles.logoutButton} onClick={logout}>ထွက်မယ်</button></div>
       </aside>
 
       <div className={styles.workspace}>
@@ -79,7 +92,7 @@ export default function UserHome() {
 
         <main className={styles.content}>
           <section className={styles.hero}>
-            <div className={styles.heroCopy}><span className={styles.kicker}>ကျန်းမာ • အဆင်ပြေ • မြန်မာအရသာ</span><h1>မင်္ဂလာနံနက်ခင်းပါ၊<br/><em>မမေစန္ဒီ</em></h1><p>ဒီနေ့မိသားစုအတွက် အရသာရှိပြီး ကျန်းမာရေးနဲ့ညီညွတ်တဲ့ ဟင်းလျာတွေ စီစဉ်လိုက်ရအောင်။</p><div className={styles.heroActions}><button>တစ်ပတ်စာ စီစဉ်မယ် <span>→</span></button><button className={styles.secondary}>ဟင်းလျာများ ကြည့်မယ်</button></div></div>
+            <div className={styles.heroCopy}><span className={styles.kicker}>ကျန်းမာ • အဆင်ပြေ • မြန်မာအရသာ</span><h1>မင်္ဂလာနံနက်ခင်းပါ၊<br/><em>{currentUser}</em></h1><p>ဒီနေ့မိသားစုအတွက် အရသာရှိပြီး ကျန်းမာရေးနဲ့ညီညွတ်တဲ့ ဟင်းလျာတွေ စီစဉ်လိုက်ရအောင်။</p><div className={styles.heroActions}><button>တစ်ပတ်စာ စီစဉ်မယ် <span>→</span></button><button className={styles.secondary}>ဟင်းလျာများ ကြည့်မယ်</button></div></div>
             <div className={styles.glassPlate}><span className={styles.leaf}>✦</span><div className={styles.plate}><div>ထမင်း</div><i>ဟင်း</i><b>အသီးအရွက်</b><span>ဟင်းချို</span></div><div className={styles.today}><small>ဒီနေ့အတွက်</small><strong>၄ ဟင်းလျာ</strong></div></div>
           </section>
 

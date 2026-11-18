@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <PackageReference Include="Npgsql" Version="10.0.3" />
+    <PackageReference Include="Resend" Version="0.26.0" />
   </ItemGroup>
 
   <PropertyGroup>

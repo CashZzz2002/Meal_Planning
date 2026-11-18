@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
 
 type ModuleInfo = { code: string; name: string };
 type TimeInfo = { now: string; timeZoneId: string };
+type CurrentUser = { displayName: string };
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:5101";
 const demoModules: ModuleInfo[] = [
@@ -19,29 +21,44 @@ const navigation = [
   ["▦", "Recipes"], ["▤", "Warehouse"], ["◫", "Orders"], ["⚙", "Settings"],
 ];
 
+class AuthenticationRequiredError extends Error {}
+
+async function authenticatedJson<T>(path: string): Promise<T> {
+  const response = await fetch(`${apiUrl}${path}`, { credentials: "include" });
+  if (response.status === 401) {
+    window.location.replace("/login");
+    throw new AuthenticationRequiredError();
+  }
+  if (!response.ok) throw new Error(`${path} unavailable`);
+  return response.json();
+}
+
 export default function AdminHome() {
+  const router = useRouter();
   const [modules, setModules] = useState<ModuleInfo[]>(demoModules);
   const [time, setTime] = useState<TimeInfo | null>(null);
   const [status, setStatus] = useState("Static demo mode");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState("Administrator");
 
   useEffect(() => {
     Promise.all([
-      fetch(`${apiUrl}/api/system/modules`).then((response) => {
-        if (!response.ok) throw new Error("Admin modules unavailable");
-        return response.json();
-      }),
-      fetch(`${apiUrl}/api/system/time`).then((response) => {
-        if (!response.ok) throw new Error("Admin time unavailable");
-        return response.json();
-      }),
-    ]).then(([moduleData, timeData]) => {
-      setModules(moduleData); setTime(timeData); setStatus("System operational");
-    }).catch(() => {
+      authenticatedJson<ModuleInfo[]>("/api/system/modules"),
+      authenticatedJson<TimeInfo>("/api/system/time"),
+      authenticatedJson<CurrentUser>("/api/auth/me"),
+    ]).then(([moduleData, timeData, user]) => {
+      setModules(moduleData); setTime(timeData); setCurrentUser(user.displayName); setStatus("System operational");
+    }).catch((error: unknown) => {
+      if (error instanceof AuthenticationRequiredError) return;
       setTime({ now: new Date().toISOString(), timeZoneId: "Asia/Yangon" });
       setStatus("Static demo mode");
     });
   }, []);
+
+  async function logout() {
+    await fetch(`${apiUrl}/api/auth/logout`, { method: "POST", credentials: "include" }).catch(() => undefined);
+    window.location.replace("/login");
+  }
 
   return (
     <div className={styles.shell}>
@@ -53,10 +70,11 @@ export default function AdminHome() {
           <span className={styles.navLabel}>Workspace</span>
           {navigation.slice(0, 6).map(([icon, label], index) => <button className={index === 0 ? styles.active : ""} key={label}><i>{icon}</i><span>{label}</span>{index === 5 && <b>12</b>}</button>)}
           <span className={styles.navLabel}>System</span>
+          <button onClick={() => router.push("/admin-requests")}><i>♙</i><span>Admin requests</span></button>
           <button><i>{navigation[6][0]}</i><span>{navigation[6][1]}</span></button>
         </nav>
         <div className={styles.helpCard}><span>✦</span><strong>Need a hand?</strong><p>Review local setup and system health.</p><button>Open guide</button></div>
-        <div className={styles.sideProfile}><div className={styles.avatar}>KT</div><div><strong>Ko Thura</strong><small>Central Admin</small></div><span>⋮</span></div>
+        <div className={styles.sideProfile}><div className={styles.avatar}>AD</div><div><strong>{currentUser}</strong><small>Central Admin</small></div><button className={styles.logoutButton} onClick={logout}>Sign out</button></div>
       </aside>
 
       <div className={styles.workspace}>
@@ -68,7 +86,7 @@ export default function AdminHome() {
 
         <main className={styles.content}>
           <section className={styles.welcome}>
-            <div><span className={styles.eyebrow}>Monday overview</span><h1>မင်္ဂလာပါ, Ko Thura</h1><p>Here is what is happening across your township operations today.</p></div>
+            <div><span className={styles.eyebrow}>Monday overview</span><h1>မင်္ဂလာပါ, {currentUser}</h1><p>Here is what is happening across your township operations today.</p></div>
             <div className={styles.timeCard}><span>Myanmar local time</span><strong>{time ? new Date(time.now).toLocaleTimeString("en-MM", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Yangon" }) : "—"}</strong><small>Asia/Yangon · UTC+06:30</small></div>
           </section>
 

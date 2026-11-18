@@ -1,5 +1,8 @@
+using System.Threading.RateLimiting;
+using MealPlanning.Admin.Api.Authentication;
 using MealPlanning.Admin.Infrastructure;
 using MealPlanning.Hosting.Configuration;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
@@ -20,7 +23,34 @@ internal static class ServiceRegistration
                 options.AddDefaultPolicy(policy => policy
                     .WithOrigins(endpoints.Value.AllowedOrigins)
                     .AllowAnyHeader()
-                    .AllowAnyMethod()));
+                    .AllowAnyMethod()
+                    .AllowCredentials()));
+        if (builder.Configuration.GetValue<bool>("Database:Enabled"))
+        {
+            builder.Services.AddAuthentication(AdminCookieAuthenticationHandler.SchemeName)
+                .AddScheme<AuthenticationSchemeOptions, AdminCookieAuthenticationHandler>(
+                    AdminCookieAuthenticationHandler.SchemeName,
+                    _ => { });
+        }
+        else
+        {
+            builder.Services.AddAuthentication();
+        }
+        builder.Services.AddAuthorization(options => options.AddPolicy(
+            "AdminPortal",
+            policy => policy.RequireRole("ADMIN")));
+        builder.Services.AddAuthorization(options => options.AddPolicy(
+            "SuperAdmin",
+            policy => policy.RequireRole("SUPER_ADMIN")));
+        builder.Services.AddRateLimiter(options => options.AddPolicy("login", context =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 5,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0
+                })));
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen(options => options.SwaggerDoc("v1", new OpenApiInfo
         {

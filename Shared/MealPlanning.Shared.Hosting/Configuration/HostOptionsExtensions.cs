@@ -46,6 +46,20 @@ public static class HostOptionsExtensions
             .Bind(configuration.GetSection(HttpsRedirectionOptions.SectionName))
             .ValidateOnStart();
 
+        services.AddOptions<EmailOptions>()
+            .Bind(configuration.GetSection(EmailOptions.SectionName))
+            .Validate(options => !options.Enabled || options.Provider == "Resend",
+                "Email:Provider must be Resend when email delivery is enabled.")
+            .Validate(options => !options.Enabled ||
+                (!string.IsNullOrWhiteSpace(options.FromName) && IsEmailAddress(options.FromAddress)),
+                "Email:FromName and a valid Email:FromAddress are required when email delivery is enabled.")
+            .Validate(options => string.IsNullOrWhiteSpace(options.DevelopmentRecipient) ||
+                (configuration["Stage"] == "dev" && IsEmailAddress(options.DevelopmentRecipient)),
+                "Email:DevelopmentRecipient must be a valid email and may only be used in the dev stage.")
+            .Validate(options => !options.Enabled || !string.IsNullOrWhiteSpace(configuration["RESEND_APITOKEN"]),
+                "RESEND_APITOKEN is required from a private source when email delivery is enabled.")
+            .ValidateOnStart();
+
         return services;
     }
 
@@ -63,4 +77,16 @@ public static class HostOptionsExtensions
     private static bool HasDatabaseConnection(IConfiguration configuration) =>
         !string.IsNullOrWhiteSpace(configuration.GetConnectionString("MealPlanner")) ||
         !string.IsNullOrWhiteSpace(configuration["DATABASE_URL"]);
+
+    private static bool IsEmailAddress(string value)
+    {
+        try
+        {
+            return new System.Net.Mail.MailAddress(value).Address.Equals(value, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+    }
 }
